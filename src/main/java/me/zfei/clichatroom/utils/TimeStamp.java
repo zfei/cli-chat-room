@@ -1,4 +1,4 @@
-package me.zfei.reliablemulticast.utils;
+package me.zfei.clichatroom.utils;
 
 /**
  * Created by zfei on 3/31/14.
