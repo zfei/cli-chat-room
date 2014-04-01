@@ -39,7 +39,7 @@ public class MemberListener extends Thread {
         System.out.format("MEMBER %d DELIVERED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
     }
 
-    private synchronized void onPacketReceive(DatagramPacket receivedPacket) {
+    private synchronized void onReceivePacket(DatagramPacket receivedPacket) {
         // unpack received packet
         String serializedMessage = null;
         try {
@@ -110,7 +110,7 @@ public class MemberListener extends Thread {
 
                 @Override
                 public void run() {
-                    onPacketReceive(receivedPacket);
+                    onReceivePacket(receivedPacket);
                 }
 
             };

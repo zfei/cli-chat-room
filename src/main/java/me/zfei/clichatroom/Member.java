@@ -87,9 +87,18 @@ public class Member extends Thread {
         }
     }
 
+    private boolean packetWillDrop() {
+        Random rand = new Random();
+        return rand.nextDouble() < ChatRoom.DROP_RATE;
+    }
+
     public void unicastSend(Member other, String msg) throws IOException {
-        DatagramSocket outgoingSocket = null;
-        outgoingSocket = new DatagramSocket();
+        if (packetWillDrop()) {
+            System.out.format("Oops, MEMBER %d DROPPED A PACKET SENT TO %d\n", this.identifier, other.getIdentifier());
+            return;
+        }
+
+        DatagramSocket outgoingSocket = new DatagramSocket();
         InetAddress IPAddress = InetAddress.getByName("localhost");
         byte[] sendData;
         sendData = msg.getBytes("UTF-8");
