@@ -32,7 +32,7 @@ public class MemberListener extends Thread {
         return receivePacket;
     }
 
-    private void deliver(DatagramPacket receivedPacket) {
+    private synchronized void deliver(DatagramPacket receivedPacket) {
         String serializedMessage = null;
         try {
             serializedMessage = new String(receivedPacket.getData(), "UTF-8").trim();
@@ -45,6 +45,10 @@ public class MemberListener extends Thread {
             jsonObj = new JSONObject(serializedMessage);
             String message = jsonObj.getString("message");
             String tsString = jsonObj.getString("timestamp");
+
+            // increment timestamp
+            this.owner.getTimestamp().increment(tsString);
+
             System.out.format("MEMBER %d RECEIVED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
         } catch (JSONException e) {
             e.printStackTrace();

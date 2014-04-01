@@ -15,17 +15,31 @@ public class LamportTimeStamp implements TimeStamp {
         this.tsValue = tsValue;
     }
 
+    public LamportTimeStamp(String tsString) {
+        this.tsValue = Integer.valueOf(tsValue);
+    }
+
     public int getTsValue() {
-        return tsValue;
+        return this.tsValue;
     }
 
     @Override
-    public void increment() {
-        this.tsValue ++;
+    public String toString() {
+        return String.valueOf(this.tsValue);
     }
 
     @Override
-    public void increment(TimeStamp ts) {
+    public synchronized void increment() {
+        this.tsValue++;
+    }
+
+    @Override
+    public synchronized void increment(TimeStamp ts) {
         this.tsValue = Math.max(this.tsValue, ((LamportTimeStamp) ts).getTsValue()) + 1;
+    }
+
+    @Override
+    public synchronized void increment(String tsString) {
+        increment(new LamportTimeStamp(tsString));
     }
 }

@@ -6,4 +6,5 @@ package me.zfei.clichatroom.utils;
 public interface TimeStamp {
     void increment();
     void increment(TimeStamp ts);
+    void increment(String tsString);
 }

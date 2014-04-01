@@ -27,15 +27,11 @@ public class Member extends Thread {
     private ArrayList<Member> members;
     private MemberListener listener;
 
-    private DatagramSocket outgoingSocket;
-
     public Member(int identifier, TimeStamp initialTimestamp) throws SocketException {
         this.identifier = identifier;
         this.port = PORT_BASE + identifier;
 
         this.timestamp = initialTimestamp;
-
-        this.outgoingSocket = new DatagramSocket();
 
         // start listening to incoming connections
         this.listener = new MemberListener(this);
@@ -50,6 +46,10 @@ public class Member extends Thread {
         return port;
     }
 
+    public TimeStamp getTimestamp() {
+        return timestamp;
+    }
+
     public void setMembers(ArrayList<Member> members) {
         this.members = members;
     }
@@ -59,6 +59,8 @@ public class Member extends Thread {
     }
 
     private void multicast(String msg) {
+        this.timestamp.increment();
+
         for (Member m : this.members) {
             if (m == this) {
                 continue;
@@ -130,6 +132,8 @@ public class Member extends Thread {
         Random rand = new Random();
         while (true) {
             String message = messages[rand.nextInt(messages.length)];
+            // increment timestamp
+            this.timestamp.increment();
             String serializedMessage = serializeToJson(message);
             multicast(serializedMessage);
             sleep(rand.nextInt(1500) + 1000);
