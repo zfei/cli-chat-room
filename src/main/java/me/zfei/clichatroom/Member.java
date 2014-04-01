@@ -1,36 +1,41 @@
 package me.zfei.clichatroom;
 
 import java.io.IOException;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Random;
 
 /**
  * Created by zfei on 3/31/14.
  */
-public class Member implements Runnable {
+public class Member extends Thread {
 
-    public static int PORT_BASE = 5000;
+    public static int PORT_BASE = 60000;
 
-    private int identifer;
+    private int identifier;
     private int port;
 
     private ArrayList<Member> members;
     private MemberListener listener;
 
-    private Socket[] sockets;
+    private DatagramSocket outgoingSocket;
 
-    public Member(int identifer) {
-        this.identifer = identifer;
-        this.port = PORT_BASE + identifer;
+    public Member(int identifier) throws SocketException {
+        this.identifier = identifier;
+        this.port = PORT_BASE + identifier;
+
+        this.outgoingSocket = new DatagramSocket();
 
         // start listening to incoming connections
         this.listener = new MemberListener(this);
-        this.listener.run();
+        this.listener.start();
     }
 
-    public int getIdentifer() {
-        return identifer;
+    public int getIdentifier() {
+        return identifier;
     }
 
     public int getPort() {
@@ -39,46 +44,56 @@ public class Member implements Runnable {
 
     public void setMembers(ArrayList<Member> members) {
         this.members = members;
-        this.sockets = new Socket[members.size()];
-
-        // setup connections with all other members
-        for (int i = 0; i < this.members.size(); i++)
-            if (i != this.identifer)
-                while (!initSocketWith(members.get(i)))
-                    sleep(500);
     }
 
     public void addMember(Member newMember) {
         this.members.add(newMember);
-        while (!initSocketWith(newMember))
-            sleep(500);
     }
 
     private void multicast(String msg) {
-        Random rand = new Random();
         for (Member m : this.members) {
-            sleep(rand.nextInt(1000));
+            if (m == this) {
+                continue;
+            }
+
             sendTo(m, msg);
         }
     }
 
-    private void sendTo(Member other, String msg) {
-
+    public void unicastSend(Member other, String msg) throws IOException {
+        DatagramSocket outgoingSocket = null;
+        outgoingSocket = new DatagramSocket();
+        InetAddress IPAddress = InetAddress.getByName("localhost");
+        byte[] sendData;
+        sendData = msg.getBytes("UTF-8");
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, other.getPort());
+        outgoingSocket.send(sendPacket);
+        outgoingSocket.close();
     }
 
-    private boolean initSocketWith(Member other) {
-        try {
-            this.sockets[other.getIdentifer()] = new Socket("localhost", other.getPort());
-        } catch (IOException e) {
-            return false;
-        }
+    private void sendTo(final Member other, final String msg) {
+        Thread t = new Thread() {
 
-        return true;
+            @Override
+            public void run() {
+                try {
+                    sleep(new Random().nextInt(1000));
+                    unicastSend(other, msg);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        };
+
+        t.start();
     }
 
     private void sleep(int milliseconds) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -87,10 +102,16 @@ public class Member implements Runnable {
 
     @Override
     public void run() {
-        // randomly send messages
+        String[] messages = {"Hello", "How are you", "Have a good day", "Nice talking to you"};
+        for (int i = 0; i < messages.length; i++) {
+            messages[i] += ", I'm member " + this.identifier;
+        }
+
+        // send messages
+        Random rand = new Random();
         while (true) {
-            sleep(10000);
-            multicast("hello");
+            multicast(messages[rand.nextInt(messages.length)]);
+            sleep(rand.nextInt(1500) + 1000);
         }
     }
 }
