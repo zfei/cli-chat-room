@@ -1,5 +1,9 @@
 package me.zfei.clichatroom;
 
+import me.zfei.clichatroom.utils.TimeStamp;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -18,14 +22,18 @@ public class Member extends Thread {
     private int identifier;
     private int port;
 
+    private TimeStamp timestamp;
+
     private ArrayList<Member> members;
     private MemberListener listener;
 
     private DatagramSocket outgoingSocket;
 
-    public Member(int identifier) throws SocketException {
+    public Member(int identifier, TimeStamp initialTimestamp) throws SocketException {
         this.identifier = identifier;
         this.port = PORT_BASE + identifier;
+
+        this.timestamp = initialTimestamp;
 
         this.outgoingSocket = new DatagramSocket();
 
@@ -99,6 +107,17 @@ public class Member extends Thread {
         }
     }
 
+    private String serializeToJson(String message) {
+        JSONObject jsonObj = new JSONObject();
+        try {
+            jsonObj.put("message", message);
+            jsonObj.put("timestamp", this.timestamp);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return jsonObj.toString();
+    }
 
     @Override
     public void run() {
@@ -110,7 +129,9 @@ public class Member extends Thread {
         // send messages
         Random rand = new Random();
         while (true) {
-            multicast(messages[rand.nextInt(messages.length)]);
+            String message = messages[rand.nextInt(messages.length)];
+            String serializedMessage = serializeToJson(message);
+            multicast(serializedMessage);
             sleep(rand.nextInt(1500) + 1000);
         }
     }

@@ -1,5 +1,8 @@
 package me.zfei.clichatroom;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
@@ -30,14 +33,22 @@ public class MemberListener extends Thread {
     }
 
     private void deliver(DatagramPacket receivedPacket) {
-        String sentence = null;
+        String serializedMessage = null;
         try {
-            sentence = new String(receivedPacket.getData(), "UTF-8");
+            serializedMessage = new String(receivedPacket.getData(), "UTF-8").trim();
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
 
-        System.out.format("MEMBER %d RECEIVED %s\n", this.owner.getIdentifier(), sentence.trim());
+        JSONObject jsonObj;
+        try {
+            jsonObj = new JSONObject(serializedMessage);
+            String message = jsonObj.getString("message");
+            String tsString = jsonObj.getString("timestamp");
+            System.out.format("MEMBER %d RECEIVED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

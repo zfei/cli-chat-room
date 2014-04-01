@@ -1,5 +1,7 @@
 package me.zfei.clichatroom;
 
+import me.zfei.clichatroom.utils.LamportTimeStamp;
+
 import java.net.SocketException;
 import java.util.ArrayList;
 
@@ -9,9 +11,9 @@ import java.util.ArrayList;
 public class ChatRoom {
     public static void main(String[] args) throws SocketException {
         ArrayList<Member> members = new ArrayList<Member>();
-        members.add(new Member(0));
-        members.add(new Member(1));
-        members.add(new Member(2));
+        members.add(new Member(0, new LamportTimeStamp()));
+        members.add(new Member(1, new LamportTimeStamp()));
+        members.add(new Member(2, new LamportTimeStamp()));
 
         for (Member m : members) {
             m.setMembers(members);
