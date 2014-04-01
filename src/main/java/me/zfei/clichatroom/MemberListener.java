@@ -8,6 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.HashSet;
 
 /**
  * Created by zfei on 3/31/14.
@@ -15,9 +16,11 @@ import java.net.SocketException;
 public class MemberListener extends Thread {
 
     private Member owner;
+    private HashSet<String> receivedMessages;
 
     public MemberListener(Member owner) {
         this.owner = owner;
+        this.receivedMessages = new HashSet<String>();
     }
 
     private DatagramPacket unicastReceive(DatagramSocket serverSocket) {
@@ -32,7 +35,12 @@ public class MemberListener extends Thread {
         return receivePacket;
     }
 
-    private synchronized void deliver(DatagramPacket receivedPacket) {
+    private void deliver(String message, String tsString) {
+        System.out.format("MEMBER %d DELIVERED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
+    }
+
+    private synchronized void onPacketReceive(DatagramPacket receivedPacket) {
+        // unpack received packet
         String serializedMessage = null;
         try {
             serializedMessage = new String(receivedPacket.getData(), "UTF-8").trim();
@@ -41,17 +49,46 @@ public class MemberListener extends Thread {
         }
 
         JSONObject jsonObj;
+        String message = "";
+        String tsString = "";
+        int senderId = -1;
         try {
             jsonObj = new JSONObject(serializedMessage);
-            String message = jsonObj.getString("message");
-            String tsString = jsonObj.getString("timestamp");
-
-            // increment timestamp
-            this.owner.getTimestamp().increment(tsString);
-
-            System.out.format("MEMBER %d RECEIVED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
+            message = jsonObj.getString("message");
+            tsString = jsonObj.getString("timestamp");
+            senderId = jsonObj.getInt("sender");
+//            System.out.format("MEMBER %d RECEIVED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
         } catch (JSONException e) {
             e.printStackTrace();
+        }
+
+        // try to deliver message
+        switch (ChatRoom.MULTICAST_TYPE) {
+            case BASIC_MULTICAST:
+                synchronized (this.owner.getTimestamp()) {
+                    // increment timestamp
+                    this.owner.getTimestamp().increment(tsString);
+
+                    deliver(message, this.owner.getTimestamp().toString());
+                }
+                break;
+            case RELIABLE_MULTICAST:
+                if (!this.receivedMessages.contains(serializedMessage)) {
+                    this.receivedMessages.add(serializedMessage);
+
+                    if (this.owner.getIdentifier() != senderId) {
+                        this.owner.basicMulticast(serializedMessage, true);
+                    }
+
+                    deliver(message, this.owner.getTimestamp().toString());
+                }
+                break;
+            case RELIABLE_CAUSAL_ORDERING:
+                break;
+            case RELIABLE_TOTAL_ORDERING:
+                break;
+            default:
+                break;
         }
     }
 
@@ -65,8 +102,7 @@ public class MemberListener extends Thread {
             return;
         }
 
-        while(true)
-        {
+        while (true) {
             final DatagramPacket receivedPacket = unicastReceive(serverSocket);
 
             // deliver packet
@@ -74,7 +110,7 @@ public class MemberListener extends Thread {
 
                 @Override
                 public void run() {
-                    deliver(receivedPacket);
+                    onPacketReceive(receivedPacket);
                 }
 
             };

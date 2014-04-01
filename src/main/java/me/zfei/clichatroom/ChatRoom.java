@@ -1,6 +1,8 @@
 package me.zfei.clichatroom;
 
 import me.zfei.clichatroom.utils.LamportTimeStamp;
+import me.zfei.clichatroom.utils.MulticastType;
+import me.zfei.clichatroom.utils.VectorTimeStamp;
 
 import java.net.SocketException;
 import java.util.ArrayList;
@@ -9,11 +11,17 @@ import java.util.ArrayList;
  * Created by zfei on 3/31/14.
  */
 public class ChatRoom {
+
+    public static int PORT_BASE = 60000;
+    public static int NUM_MEMBERS = 3;
+    public static boolean USE_VECTOR_TIMESTAMP = true;
+    public static MulticastType MULTICAST_TYPE = MulticastType.RELIABLE_MULTICAST;
+
     public static void main(String[] args) throws SocketException {
         ArrayList<Member> members = new ArrayList<Member>();
-        members.add(new Member(0, new LamportTimeStamp()));
-        members.add(new Member(1, new LamportTimeStamp()));
-        members.add(new Member(2, new LamportTimeStamp()));
+        for (int i = 0; i < NUM_MEMBERS; i++) {
+            members.add(new Member(i, USE_VECTOR_TIMESTAMP? new VectorTimeStamp(i, NUM_MEMBERS): new LamportTimeStamp()));
+        }
 
         for (Member m : members) {
             m.setMembers(members);
@@ -21,3 +29,4 @@ public class ChatRoom {
         }
     }
 }
+

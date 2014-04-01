@@ -17,8 +17,6 @@ import java.util.Random;
  */
 public class Member extends Thread {
 
-    public static int PORT_BASE = 60000;
-
     private int identifier;
     private int port;
 
@@ -29,7 +27,7 @@ public class Member extends Thread {
 
     public Member(int identifier, TimeStamp initialTimestamp) throws SocketException {
         this.identifier = identifier;
-        this.port = PORT_BASE + identifier;
+        this.port = ChatRoom.PORT_BASE + identifier;
 
         this.timestamp = initialTimestamp;
 
@@ -58,15 +56,34 @@ public class Member extends Thread {
         this.members.add(newMember);
     }
 
-    private void multicast(String msg) {
-        this.timestamp.increment();
+    public void multicast(String serializedMessage) {
+        System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", this.identifier, this.timestamp.toString());
 
+        switch (ChatRoom.MULTICAST_TYPE) {
+            case BASIC_MULTICAST:
+//                this.timestamp.increment();
+                basicMulticast(serializedMessage, false);
+                break;
+            case RELIABLE_MULTICAST:
+//                this.timestamp.increment();
+                basicMulticast(serializedMessage, true);
+                break;
+            case RELIABLE_CAUSAL_ORDERING:
+                break;
+            case RELIABLE_TOTAL_ORDERING:
+                break;
+            default:
+                break;
+        }
+    }
+
+    public void basicMulticast(String serializedMessage, boolean includeMyself) {
         for (Member m : this.members) {
-            if (m == this) {
+            if (!includeMyself && m == this) {
                 continue;
             }
 
-            sendTo(m, msg);
+            initiateUnicastSend(m, serializedMessage);
         }
     }
 
@@ -81,7 +98,7 @@ public class Member extends Thread {
         outgoingSocket.close();
     }
 
-    private void sendTo(final Member other, final String msg) {
+    private void initiateUnicastSend(final Member other, final String msg) {
         Thread t = new Thread() {
 
             @Override
@@ -114,6 +131,7 @@ public class Member extends Thread {
         try {
             jsonObj.put("message", message);
             jsonObj.put("timestamp", this.timestamp);
+            jsonObj.put("sender", this.identifier);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -132,10 +150,15 @@ public class Member extends Thread {
         Random rand = new Random();
         while (true) {
             String message = messages[rand.nextInt(messages.length)];
-            // increment timestamp
-            this.timestamp.increment();
+
+            synchronized (this.timestamp) {
+                // increment timestamp
+                this.timestamp.increment();
+            }
+
             String serializedMessage = serializeToJson(message);
             multicast(serializedMessage);
+
             sleep(rand.nextInt(1500) + 1000);
         }
     }

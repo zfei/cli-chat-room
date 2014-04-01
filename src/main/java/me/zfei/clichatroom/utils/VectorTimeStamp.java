@@ -34,6 +34,17 @@ public class VectorTimeStamp implements TimeStamp {
     }
 
     @Override
+    public String toString() {
+        try {
+            return new JSONArray(this.tsArray).toString();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return "[]";
+    }
+
+    @Override
     public synchronized void increment() {
         this.tsArray[this.identifier] ++;
     }
