@@ -29,17 +29,33 @@ public class LamportTimeStamp implements TimeStamp {
     }
 
     @Override
-    public synchronized void increment() {
+    public synchronized TimeStamp increment() {
         this.tsValue++;
+        return this;
     }
 
     @Override
-    public synchronized void increment(TimeStamp ts) {
-        this.tsValue = Math.max(this.tsValue, ((LamportTimeStamp) ts).getTsValue()) + 1;
+    public synchronized TimeStamp increment(TimeStamp ts) {
+        combine(ts);
+        this.tsValue++;
+        return this;
     }
 
     @Override
-    public synchronized void increment(String tsString) {
+    public synchronized TimeStamp increment(String tsString) {
         increment(new LamportTimeStamp(tsString));
+        return this;
+    }
+
+    @Override
+    public synchronized TimeStamp combine(TimeStamp ts) {
+        this.tsValue = Math.max(this.tsValue, ((LamportTimeStamp) ts).getTsValue());
+        return this;
+    }
+
+    @Override
+    public synchronized TimeStamp combine(String tsString) {
+        combine(new LamportTimeStamp(tsString));
+        return this;
     }
 }

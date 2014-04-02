@@ -1,6 +1,7 @@
 package me.zfei.clichatroom;
 
 import me.zfei.clichatroom.utils.TimeStamp;
+import me.zfei.clichatroom.utils.VectorTimeStamp;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -56,19 +57,35 @@ public class Member extends Thread {
         this.members.add(newMember);
     }
 
-    public void multicast(String serializedMessage) {
-        System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", this.identifier, this.timestamp.toString());
-
+    public void multicast(String message) {
+        String serializedMessage;
         switch (ChatRoom.MULTICAST_TYPE) {
             case BASIC_MULTICAST:
-//                this.timestamp.increment();
+                synchronized (this.timestamp) {
+                    // increment timestamp
+                    this.timestamp.increment();
+
+                    serializedMessage = serializeToJson(message, this.timestamp.toString());
+                }
                 basicMulticast(serializedMessage, false);
                 break;
             case RELIABLE_MULTICAST:
-//                this.timestamp.increment();
+                synchronized (this.timestamp) {
+                    // increment timestamp
+                    this.timestamp.increment();
+
+                    serializedMessage = serializeToJson(message, this.timestamp.toString());
+                }
                 basicMulticast(serializedMessage, true);
                 break;
             case RELIABLE_CAUSAL_ORDERING:
+                synchronized (this.timestamp) {
+                    VectorTimeStamp incrementedStamp = new VectorTimeStamp((VectorTimeStamp) this.timestamp);
+                    incrementedStamp.increment();
+
+                    serializedMessage = serializeToJson(message, incrementedStamp.toString());
+                }
+                basicMulticast(serializedMessage, true);
                 break;
             case RELIABLE_TOTAL_ORDERING:
                 break;
@@ -78,6 +95,8 @@ public class Member extends Thread {
     }
 
     public void basicMulticast(String serializedMessage, boolean includeMyself) {
+        System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", this.identifier, this.timestamp.toString());
+
         for (Member m : this.members) {
             if (!includeMyself && m == this) {
                 continue;
@@ -135,11 +154,11 @@ public class Member extends Thread {
         }
     }
 
-    private String serializeToJson(String message) {
+    private String serializeToJson(String message, String tsString) {
         JSONObject jsonObj = new JSONObject();
         try {
             jsonObj.put("message", message);
-            jsonObj.put("timestamp", this.timestamp);
+            jsonObj.put("timestamp", tsString);
             jsonObj.put("sender", this.identifier);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -160,13 +179,7 @@ public class Member extends Thread {
         while (true) {
             String message = messages[rand.nextInt(messages.length)];
 
-            synchronized (this.timestamp) {
-                // increment timestamp
-                this.timestamp.increment();
-            }
-
-            String serializedMessage = serializeToJson(message);
-            multicast(serializedMessage);
+            multicast(message);
 
             sleep(rand.nextInt(1500) + 1000);
         }

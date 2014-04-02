@@ -15,8 +15,8 @@ public class ChatRoom {
     public static int PORT_BASE = 60000;
     public static int NUM_MEMBERS = 3;
     public static boolean USE_VECTOR_TIMESTAMP = true;
-    public static MulticastType MULTICAST_TYPE = MulticastType.RELIABLE_MULTICAST;
-    public static double DROP_RATE = 0.1;
+    public static MulticastType MULTICAST_TYPE = MulticastType.RELIABLE_CAUSAL_ORDERING;
+    public static double DROP_RATE = 0;
 
     public static void main(String[] args) throws SocketException {
         ArrayList<Member> members = new ArrayList<Member>();

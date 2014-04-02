@@ -11,12 +11,21 @@ public class VectorTimeStamp implements TimeStamp {
     private int identifier;
     private int[] tsArray;
 
+    public VectorTimeStamp(VectorTimeStamp vts) {
+        this(vts.getIdentifier(), vts.getTsArray().length);
+        this.initWithString(vts.toString());
+    }
+
     public VectorTimeStamp(int identifier, int numMembers) {
         this.identifier = identifier;
         this.tsArray = new int[numMembers];
     }
 
     public VectorTimeStamp(String tsString) {
+        initWithString(tsString);
+    }
+
+    public VectorTimeStamp initWithString(String tsString) {
         try {
             JSONArray jsonArray = new JSONArray(tsString);
 
@@ -27,6 +36,11 @@ public class VectorTimeStamp implements TimeStamp {
         } catch (JSONException e) {
             e.printStackTrace();
         }
+        return this;
+    }
+
+    public int getIdentifier() {
+        return identifier;
     }
 
     public int[] getTsArray() {
@@ -44,24 +58,42 @@ public class VectorTimeStamp implements TimeStamp {
         return "[]";
     }
 
-    @Override
-    public synchronized void increment() {
-        this.tsArray[this.identifier] ++;
+    public synchronized void incrementAt(int i) {
+        this.tsArray[i] ++;
     }
 
     @Override
-    public synchronized void increment(TimeStamp ts) {
+    public synchronized TimeStamp increment() {
+        incrementAt(this.identifier);
+        return this;
+    }
+
+    @Override
+    public synchronized TimeStamp increment(TimeStamp ts) {
+        combine(ts);
+        this.tsArray[this.identifier] ++;
+        return this;
+    }
+
+    @Override
+    public synchronized TimeStamp increment(String tsString) {
+        increment(new VectorTimeStamp(tsString));
+        return this;
+    }
+
+    @Override
+    public synchronized TimeStamp combine(TimeStamp ts) {
         for (int i = 0; i < this.tsArray.length; i++) {
-            if (i == this.identifier) {
-                this.tsArray[i] ++;
-            } else {
+            if (i != this.identifier) {
                 this.tsArray[i] = Math.max(this.tsArray[i], ((VectorTimeStamp) ts).getTsArray()[i]);
             }
         }
+        return this;
     }
 
     @Override
-    public synchronized void increment(String tsString) {
-        increment(new VectorTimeStamp(tsString));
+    public synchronized TimeStamp combine(String tsString) {
+        combine(new VectorTimeStamp(tsString));
+        return this;
     }
 }
