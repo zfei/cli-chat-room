@@ -1,5 +1,7 @@
 package me.zfei.clichatroom.models;
 
+import com.google.common.base.Charsets;
+import com.google.common.hash.Hashing;
 import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.utils.MulticastType;
 import me.zfei.clichatroom.utils.Networker;
@@ -9,10 +11,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by zfei on 3/31/14.
@@ -22,13 +23,15 @@ public class MemberListener extends Thread {
     private Member owner;
     private HashSet<String> receivedMessages;
     private Queue<String> holdBackQueue;
+    private Map<Integer, String> readyDigests;
 
     private Networker networker;
 
     public MemberListener(Member owner) {
         this.owner = owner;
         this.receivedMessages = new HashSet<String>();
-        this.holdBackQueue = new LinkedList<String>();
+        this.holdBackQueue = new ConcurrentLinkedQueue<String>();
+        this.readyDigests = new ConcurrentHashMap<Integer, String>();
 
         this.networker = new Networker();
 
@@ -59,6 +62,47 @@ public class MemberListener extends Thread {
 
             t.start();
         }
+
+        if (ChatRoom.MULTICAST_TYPE == MulticastType.RELIABLE_TOTAL_ORDERING) {
+            // start daemon thread that processes the hold back queue
+            Thread t = new Thread() {
+
+                @Override
+                public void run() {
+                    while (true) {
+                        Iterator<Integer> it = readyDigests.keySet().iterator();
+                        while (it.hasNext()) {
+                            Integer sequence = it.next();
+
+                            String digest = readyDigests.get(sequence);
+                            if (totalDeliver(findOriginalMessage(digest), sequence)) {
+                                it.remove();
+                            }
+                        }
+
+                        // wait some time and try again
+                        try {
+                            sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+            };
+
+            t.start();
+        }
+    }
+
+    private String findOriginalMessage(String digest) {
+        for (String original : this.holdBackQueue) {
+            if (Hashing.sha256().hashString(original, Charsets.UTF_8).toString().equals(digest)) {
+                return original;
+            }
+        }
+
+        return null;
     }
 
     private void deliver(String message, String tsString) {
@@ -101,6 +145,25 @@ public class MemberListener extends Thread {
         }
 
         return true;
+    }
+
+    private boolean totalDeliver(String message, int sequence) {
+        if (message == null) {
+            return false;
+        }
+
+        synchronized (this.owner.getTimestamp()) {
+            if (this.owner.getTimestamp().toString().equals(String.valueOf(sequence))) {
+                deliver(new Message(message).getMessage(), this.owner.getTimestamp().toString());
+
+                // increment sender entry in timestamp
+                this.owner.getTimestamp().increment();
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private synchronized void onReceivePacket(DatagramPacket receivedPacket) {
@@ -148,6 +211,14 @@ public class MemberListener extends Thread {
                 causalDeliver(messageObj, true);
                 break;
             case RELIABLE_TOTAL_ORDERING:
+                if (messageObj.isOrder()) {
+                    String digest = messageObj.getDigest();
+                    int sequence = messageObj.getSequence();
+
+                    this.readyDigests.put(sequence, digest);
+                } else {
+                    this.holdBackQueue.add(serializedMessage);
+                }
                 break;
             default:
                 break;

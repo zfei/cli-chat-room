@@ -13,15 +13,27 @@ public class Message {
     private int senderId;
     private String serializedMessage;
 
+    private String digest;
+    private boolean order;
+    private int sequence;
+
     public Message(String serializedMessage) {
         this.serializedMessage = serializedMessage;
 
         JSONObject jsonObj;
         try {
             jsonObj = new JSONObject(serializedMessage);
-            message = jsonObj.getString("message");
-            tsString = jsonObj.getString("timestamp");
-            senderId = jsonObj.getInt("sender");
+
+            this.order = false;
+            if (jsonObj.has("order")) {
+                this.order = true;
+                this.digest = jsonObj.getString("digest");
+                this.sequence = jsonObj.getInt("sequence");
+            } else {
+                this.message = jsonObj.getString("message");
+                this.tsString = jsonObj.getString("timestamp");
+                this.senderId = jsonObj.getInt("sender");
+            }
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -41,5 +53,17 @@ public class Message {
 
     public String getSerializedMessage() {
         return serializedMessage;
+    }
+
+    public String getDigest() {
+        return digest;
+    }
+
+    public boolean isOrder() {
+        return order;
+    }
+
+    public int getSequence() {
+        return sequence;
     }
 }

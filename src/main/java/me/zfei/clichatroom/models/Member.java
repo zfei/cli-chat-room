@@ -4,7 +4,6 @@ import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.utils.Networker;
 import me.zfei.clichatroom.utils.TimeStamp;
 
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -13,24 +12,27 @@ import java.util.Random;
  */
 public class Member extends Thread {
 
-    private int identifier;
-    private int port;
+    protected int identifier;
+    protected int port;
 
-    private Networker networker;
+    protected Networker networker;
 
-    private ArrayList<Member> members;
+    protected ArrayList<Member> members;
     private MemberListener listener;
 
-    public Member(int identifier, TimeStamp initialTimestamp) throws SocketException {
+    public Member(int identifier, TimeStamp initialTimestamp) {
         this.identifier = identifier;
         this.port = ChatRoom.PORT_BASE + identifier;
 
         this.networker = new Networker(this.port, initialTimestamp);
+    }
 
+    public void startListener() {
         // start listening to incoming connections
         this.listener = new MemberListener(this);
         this.listener.start();
     }
+
 
     public int getIdentifier() {
         return identifier;

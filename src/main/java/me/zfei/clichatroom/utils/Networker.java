@@ -2,6 +2,7 @@ package me.zfei.clichatroom.utils;
 
 import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.models.Member;
+import me.zfei.clichatroom.models.Sequencer;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -89,6 +90,8 @@ public class Networker {
                 basicMulticast(members, sender, serializedMessage, true);
                 break;
             case RELIABLE_TOTAL_ORDERING:
+                serializedMessage = serializeToJson(message, senderId, "");
+                basicMulticast(members, sender, serializedMessage, true);
                 break;
             default:
                 break;
@@ -116,7 +119,11 @@ public class Networker {
     }
 
     public void basicMulticast(ArrayList<Member> members, Member sender, String serializedMessage, boolean includeMyself) {
-        System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", sender.getIdentifier(), this.timestamp.toString());
+        if (sender instanceof Sequencer) {
+            System.out.format("SEQUENCER SENDS ORDER\n");
+        } else {
+            System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", sender.getIdentifier(), this.timestamp.toString());
+        }
 
         for (Member m : members) {
             if (!includeMyself && m == sender) {
