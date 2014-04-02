@@ -1,5 +1,6 @@
 package me.zfei.clichatroom;
 
+import me.zfei.clichatroom.models.Member;
 import me.zfei.clichatroom.utils.LamportTimeStamp;
 import me.zfei.clichatroom.utils.MulticastType;
 import me.zfei.clichatroom.utils.VectorTimeStamp;

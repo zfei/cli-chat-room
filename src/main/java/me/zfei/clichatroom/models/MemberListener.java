@@ -1,9 +1,10 @@
-package me.zfei.clichatroom;
+package me.zfei.clichatroom.models;
 
+import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.utils.MulticastType;
+import me.zfei.clichatroom.utils.Networker;
 import me.zfei.clichatroom.utils.VectorTimeStamp;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -22,10 +23,14 @@ public class MemberListener extends Thread {
     private HashSet<String> receivedMessages;
     private Queue<String> holdBackQueue;
 
+    private Networker networker;
+
     public MemberListener(Member owner) {
         this.owner = owner;
         this.receivedMessages = new HashSet<String>();
         this.holdBackQueue = new LinkedList<String>();
+
+        this.networker = new Networker();
 
         if (ChatRoom.MULTICAST_TYPE == MulticastType.RELIABLE_CAUSAL_ORDERING) {
             // start daemon thread that processes the hold back queue
@@ -54,18 +59,6 @@ public class MemberListener extends Thread {
 
             t.start();
         }
-    }
-
-    private DatagramPacket unicastReceive(DatagramSocket serverSocket) {
-        byte[] receiveData = new byte[1024];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        try {
-            serverSocket.receive(receivePacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return receivePacket;
     }
 
     private void deliver(String message, String tsString) {
@@ -140,7 +133,7 @@ public class MemberListener extends Thread {
                     this.receivedMessages.add(serializedMessage);
 
                     if (this.owner.getIdentifier() != senderId) {
-                        this.owner.basicMulticast(serializedMessage, true);
+                        this.owner.getNetworker().basicMulticast(this.owner.getMembers(), this.owner, serializedMessage, true);
                     }
 
                     synchronized (this.owner.getTimestamp()) {
@@ -172,7 +165,7 @@ public class MemberListener extends Thread {
         }
 
         while (true) {
-            final DatagramPacket receivedPacket = unicastReceive(serverSocket);
+            final DatagramPacket receivedPacket = networker.unicastReceive(serverSocket);
 
             // deliver packet
             Thread t = new Thread() {
