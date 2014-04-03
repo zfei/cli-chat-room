@@ -33,6 +33,18 @@ There are four options for types of multicast, namely `BASIC_MULTICAST`, `RELIAB
 
 Usage
 ------
+To run `ChatRoom.jar`:
+
+```bash
+java -jar dist/ChatRoom.jar CONFIG_FILE
+```
+
+To run `Member.jar`:
+
+```bash
+java -jar dist/Member.jar CONFIG_FILE MEMBER_IDENTIFIER
+```
+
 ### Non-interactive Demo ###
 
 In `dist/config.json`, toggle `interactive` to `false`.
