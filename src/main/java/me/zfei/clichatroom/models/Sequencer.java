@@ -18,12 +18,14 @@ public class Sequencer extends Member{
     private HashSet<String> receivedMessages;
 
     public Sequencer(int identifier, TimeStamp initialTimestamp) {
-        super(identifier, initialTimestamp);
+        super("localhost", identifier, initialTimestamp);
 
         this.sequenceNum = 0;
         this.receivedMessages = new HashSet<String>();
+    }
 
-        // start daemon thread that listens to incoming messages
+    @Override
+    public void startListener() {
         Thread t = new Thread() {
 
             @Override

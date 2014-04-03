@@ -33,7 +33,6 @@ public class MemberListener extends Thread {
         this.holdBackQueue = new ConcurrentLinkedQueue<String>();
         this.readyDigests = new ConcurrentHashMap<Integer, String>();
 
-//        this.networker = new Networker(this.owner.getPort(), null);
         this.networker = this.owner.networker;
 
         if (ChatRoom.MULTICAST_TYPE == MulticastType.RELIABLE_CAUSAL_ORDERING) {

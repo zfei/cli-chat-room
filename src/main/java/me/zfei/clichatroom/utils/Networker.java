@@ -19,22 +19,22 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Networker {
 
-    private int port;
+    private Member owner;
     private TimeStamp timestamp;
 
     private Map<String, ArrayList<Integer>> ackWaitList;
 
-    public Networker(int port, TimeStamp timestamp) {
+    public Networker(Member owner, TimeStamp timestamp) {
         this.ackWaitList = new ConcurrentHashMap<String, ArrayList<Integer>>();
         // start ack daemon
         ackDaemon();
 
-        this.port = port;
+        this.owner = owner;
         this.timestamp = timestamp;
     }
 
     public int getPort() {
-        return port;
+        return this.owner.getPort();
     }
 
     public TimeStamp getTimestamp() {
@@ -42,7 +42,7 @@ public class Networker {
     }
 
     public int getIdentifier() {
-        return this.port - ChatRoom.PORT_BASE;
+        return this.owner.getIdentifier();
     }
 
     private boolean packetWillDrop() {
@@ -50,14 +50,15 @@ public class Networker {
         return rand.nextDouble() < ChatRoom.DROP_RATE;
     }
 
-    private void unicastSend(int senderId, int receiverPort, int receiverId, String msg) throws IOException {
+    private void unicastSend(int senderId, InetAddress receiverIp, int receiverPort, int receiverId, String msg) throws IOException {
         if (packetWillDrop()) {
             System.out.format("Oops, MEMBER %d DROPPED A PACKET SENT TO %d\n", senderId, receiverId);
             return;
         }
 
         DatagramSocket outgoingSocket = new DatagramSocket();
-        InetAddress IPAddress = InetAddress.getByName("localhost");
+//        InetAddress IPAddress = InetAddress.getByName(receiverIp);
+        InetAddress IPAddress = receiverIp;
         byte[] sendData;
         sendData = msg.getBytes("UTF-8");
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, receiverPort);
@@ -65,16 +66,20 @@ public class Networker {
         outgoingSocket.close();
     }
 
-    public synchronized void addToAckWaitList(String msg, Integer receiverId) {
-        if (!this.ackWaitList.containsKey(msg)) {
-            this.ackWaitList.put(msg, new ArrayList<Integer>());
+    public void addToAckWaitList(String msg, Integer receiverId) {
+        synchronized (ackWaitList) {
+            if (!this.ackWaitList.containsKey(msg)) {
+                this.ackWaitList.put(msg, new ArrayList<Integer>());
+            }
+            this.ackWaitList.get(msg).add(receiverId);
         }
-        this.ackWaitList.get(msg).add(receiverId);
     }
 
-    public synchronized void removeFromAckWaitList(String msg, Integer receiverId) {
+    public void removeFromAckWaitList(String msg, Integer receiverId) {
 //        System.out.format("TRYING TO REMOVE %d FROM %s\n, KEYS: %s", receiverId, msg, ackWaitList.keySet());
-        this.ackWaitList.get(msg).remove((Object) receiverId);
+        synchronized (ackWaitList) {
+            this.ackWaitList.get(msg).remove((Object) receiverId);
+        }
     }
 
     public void processAck(Message msgObj) {
@@ -88,15 +93,17 @@ public class Networker {
             public void run() {
                 while (true) {
                     try {
-                        sleep(1000);
+                        sleep(200);
 
-                        Iterator<String> msgIt = ackWaitList.keySet().iterator();
-                        while (msgIt.hasNext()) {
-                            String msg = msgIt.next();
-                            for (int receiverId : ackWaitList.get(msg)) {
-                                int receiverPort = receiverId + ChatRoom.PORT_BASE;
-                                System.out.println(getIdentifier() + " DIDN'T RECEIVE ACK FROM " + receiverId + ", RESENDING");
-                                unicastSend(getIdentifier(), receiverPort, receiverId, msg);
+                        synchronized (ackWaitList) {
+                            Iterator<String> msgIt = ackWaitList.keySet().iterator();
+                            while (msgIt.hasNext()) {
+                                String msg = msgIt.next();
+                                for (int receiverId : ackWaitList.get(msg)) {
+                                    int receiverPort = receiverId + ChatRoom.PORT_BASE;
+                                    System.out.println(getIdentifier() + " DIDN'T RECEIVE ACK FROM " + receiverId + ", RESENDING");
+                                    unicastSend(getIdentifier(), owner.getMemberIp(receiverId), receiverPort, receiverId, msg);
+                                }
                             }
                         }
 
@@ -153,14 +160,14 @@ public class Networker {
         }
     }
 
-    private void initiateUnicastSend(final int senderId, final int receiverPort, final int receiverId, final String msg) {
+    private void initiateUnicastSend(final int senderId, final InetAddress receiverIp, final int receiverPort, final int receiverId, final String msg) {
         Thread senderThread = new Thread() {
 
             @Override
             public void run() {
                 try {
-                    sleep(new Random().nextInt(200));
-                    unicastSend(senderId, receiverPort, receiverId, msg);
+                    sleep(new Random().nextInt(ChatRoom.DELAY_DEVIATION * 2) - ChatRoom.DELAY_DEVIATION + ChatRoom.MEAN_DELAY);
+                    unicastSend(senderId, receiverIp, receiverPort, receiverId, msg);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -188,7 +195,7 @@ public class Networker {
                 continue;
             }
 
-            initiateUnicastSend(sender.getIdentifier(), m.getPort(), m.getIdentifier(), serializedMessage);
+            initiateUnicastSend(sender.getIdentifier(), m.getIp(), m.getPort(), m.getIdentifier(), serializedMessage);
         }
     }
 
@@ -205,7 +212,7 @@ public class Networker {
         return jsonObj.toString();
     }
 
-    public void sendAck(DatagramPacket packet) {
+    public void sendAck(InetAddress toIp, DatagramPacket packet) {
         String serializedMessage = Message.decodePacket(packet);
         Message msg = new Message(serializedMessage);
         int senderId = msg.getSenderId();
@@ -220,7 +227,7 @@ public class Networker {
         }
 
         try {
-            unicastSend(this.getIdentifier(), ChatRoom.PORT_BASE + senderId, senderId, ackJsonObj.toString());
+            unicastSend(this.getIdentifier(), toIp, ChatRoom.PORT_BASE + senderId, senderId, ackJsonObj.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -236,7 +243,7 @@ public class Networker {
         }
 
         if (!new Message(receivePacket).isAck())
-            sendAck(receivePacket);
+            sendAck(receivePacket.getAddress(), receivePacket);
 
         return receivePacket;
     }
