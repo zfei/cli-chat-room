@@ -1,17 +1,17 @@
 package me.zfei.clichatroom.models;
 
-import com.google.common.base.Charsets;
-import com.google.common.hash.Hashing;
 import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.utils.MulticastType;
 import me.zfei.clichatroom.utils.Networker;
 import me.zfei.clichatroom.utils.VectorTimeStamp;
 
-import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -33,7 +33,8 @@ public class MemberListener extends Thread {
         this.holdBackQueue = new ConcurrentLinkedQueue<String>();
         this.readyDigests = new ConcurrentHashMap<Integer, String>();
 
-        this.networker = new Networker();
+//        this.networker = new Networker(this.owner.getPort(), null);
+        this.networker = this.owner.networker;
 
         if (ChatRoom.MULTICAST_TYPE == MulticastType.RELIABLE_CAUSAL_ORDERING) {
             // start daemon thread that processes the hold back queue
@@ -97,7 +98,7 @@ public class MemberListener extends Thread {
 
     private String findOriginalMessage(String digest) {
         for (String original : this.holdBackQueue) {
-            if (Hashing.sha256().hashString(original, Charsets.UTF_8).toString().equals(digest)) {
+            if (Message.genDigest(original).equals(digest)) {
                 return original;
             }
         }
@@ -168,16 +169,17 @@ public class MemberListener extends Thread {
 
     private synchronized void onReceivePacket(DatagramPacket receivedPacket) {
         // unpack received packet
-        String serializedMessage = "";
-        try {
-            serializedMessage = new String(receivedPacket.getData(), "UTF-8").trim();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-
+        String serializedMessage = Message.decodePacket(receivedPacket);
         Message messageObj = new Message(serializedMessage);
 
         String message = messageObj.getMessage();
+
+        if (messageObj.isAck()) {
+            System.out.println(this.owner.getIdentifier() + " RECEIVED ACK");
+            this.networker.processAck(messageObj);
+            return;
+        }
+
         String tsString = messageObj.getTsString();
         int senderId = messageObj.getSenderId();
 

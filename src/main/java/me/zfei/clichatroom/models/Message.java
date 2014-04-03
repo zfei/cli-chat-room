@@ -1,7 +1,12 @@
 package me.zfei.clichatroom.models;
 
+import com.google.common.base.Charsets;
+import com.google.common.hash.Hashing;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.net.DatagramPacket;
 
 /**
  * Created by zfei on 4/2/14.
@@ -17,7 +22,32 @@ public class Message {
     private boolean order;
     private int sequence;
 
+    private boolean ack;
+
+    public Message(DatagramPacket packet) {
+        initFromString(decodePacket(packet));
+    }
+
     public Message(String serializedMessage) {
+        initFromString(serializedMessage);
+    }
+
+    public static String decodePacket(DatagramPacket packet) {
+        String serializedMessage = "";
+        try {
+            serializedMessage = new String(packet.getData(), "UTF-8").trim();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        return serializedMessage;
+    }
+
+    public static String genDigest(String str) {
+        return Hashing.sha256().hashString(str, Charsets.UTF_8).toString();
+    }
+
+    private void initFromString(String serializedMessage) {
         this.serializedMessage = serializedMessage;
 
         JSONObject jsonObj;
@@ -25,14 +55,18 @@ public class Message {
             jsonObj = new JSONObject(serializedMessage);
 
             this.order = false;
-            if (jsonObj.has("order")) {
+            this.ack = false;
+            this.senderId = jsonObj.getInt("sender");
+            if (jsonObj.has("ack")) {
+                this.ack = true;
+                this.message = jsonObj.getString("message");
+            } else if (jsonObj.has("order")) {
                 this.order = true;
                 this.digest = jsonObj.getString("digest");
                 this.sequence = jsonObj.getInt("sequence");
             } else {
                 this.message = jsonObj.getString("message");
                 this.tsString = jsonObj.getString("timestamp");
-                this.senderId = jsonObj.getInt("sender");
             }
         } catch (JSONException e) {
             e.printStackTrace();
@@ -61,6 +95,10 @@ public class Message {
 
     public boolean isOrder() {
         return order;
+    }
+
+    public boolean isAck() {
+        return ack;
     }
 
     public int getSequence() {

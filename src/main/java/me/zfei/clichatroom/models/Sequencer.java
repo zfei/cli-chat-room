@@ -1,15 +1,13 @@
 package me.zfei.clichatroom.models;
 
-import com.google.common.base.Charsets;
-import com.google.common.hash.Hashing;
 import me.zfei.clichatroom.utils.TimeStamp;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.HashSet;
 
 /**
  * Created by zfei on 4/2/14.
@@ -17,11 +15,13 @@ import java.net.SocketException;
 public class Sequencer extends Member{
 
     private int sequenceNum;
+    private HashSet<String> receivedMessages;
 
     public Sequencer(int identifier, TimeStamp initialTimestamp) {
         super(identifier, initialTimestamp);
 
         this.sequenceNum = 0;
+        this.receivedMessages = new HashSet<String>();
 
         // start daemon thread that listens to incoming messages
         Thread t = new Thread() {
@@ -60,18 +60,26 @@ public class Sequencer extends Member{
 
     private synchronized void onReceiveBySequencer(DatagramPacket receivedPacket) {
         // unpack received packet
-        String serializedMessage = "";
-        try {
-            serializedMessage = new String(receivedPacket.getData(), "UTF-8").trim();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+        String serializedMessage = Message.decodePacket(receivedPacket);
+        Message msgObj = new Message(serializedMessage);
+        if (msgObj.isAck()) {
+            System.out.println("SEQUENCER RECEIVED ACK");
+            this.networker.processAck(msgObj);
+            return;
         }
+
+        if (this.receivedMessages.contains(serializedMessage)) {
+            return;
+        }
+
+        this.receivedMessages.add(serializedMessage);
 
         JSONObject orderObj = new JSONObject();
         try {
             orderObj.put("order", true);
-            orderObj.put("digest", Hashing.sha256().hashString(serializedMessage, Charsets.UTF_8).toString());
+            orderObj.put("digest", Message.genDigest(serializedMessage));
             orderObj.put("sequence", this.sequenceNum);
+            orderObj.put("sender", this.identifier);
         } catch (JSONException e) {
             e.printStackTrace();
         }
