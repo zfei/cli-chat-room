@@ -6,6 +6,8 @@ import me.zfei.clichatroom.models.Message;
 import me.zfei.clichatroom.models.Sequencer;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -33,6 +35,8 @@ public class Networker {
         this.timestamp = timestamp;
     }
 
+    private Logger logger = LoggerFactory.getLogger(Networker.class);
+
     public int getPort() {
         return this.owner.getPort();
     }
@@ -52,7 +56,7 @@ public class Networker {
 
     private void unicastSend(int senderId, InetAddress receiverIp, int receiverPort, int receiverId, String msg) throws IOException {
         if (packetWillDrop()) {
-            System.out.format("Oops, MEMBER %d DROPPED A PACKET SENT TO %d\n", senderId, receiverId);
+            logger.debug(String.format("OOPS, MEMBER %d DROPPED A PACKET SENT TO %d\n", senderId, receiverId));
             return;
         }
 
@@ -76,7 +80,6 @@ public class Networker {
     }
 
     public void removeFromAckWaitList(String msg, Integer receiverId) {
-//        System.out.format("TRYING TO REMOVE %d FROM %s\n, KEYS: %s", receiverId, msg, ackWaitList.keySet());
         synchronized (ackWaitList) {
             this.ackWaitList.get(msg).remove((Object) receiverId);
         }
@@ -101,7 +104,7 @@ public class Networker {
                                 String msg = msgIt.next();
                                 for (int receiverId : ackWaitList.get(msg)) {
                                     int receiverPort = receiverId + ChatRoom.PORT_BASE;
-                                    System.out.println(getIdentifier() + " DIDN'T RECEIVE ACK FROM " + receiverId + ", RESENDING");
+                                    logger.debug(getIdentifier() + " DIDN'T RECEIVE ACK FROM " + receiverId + ", RESENDING");
                                     unicastSend(getIdentifier(), owner.getMemberIp(receiverId), receiverPort, receiverId, msg);
                                 }
                             }
@@ -185,9 +188,9 @@ public class Networker {
 
     public void basicMulticast(ArrayList<Member> members, Member sender, String serializedMessage, boolean includeMyself) {
         if (sender instanceof Sequencer) {
-            System.out.format("SEQUENCER SENDS ORDER\n");
+            logger.info("SEQUENCER SENDS ORDER\n");
         } else {
-            System.out.format("MEMBER %d SENDS MESSAGE AT %s\n", sender.getIdentifier(), this.timestamp.toString());
+            logger.debug(String.format("MEMBER %d SENDS MESSAGE AT %s\n", sender.getIdentifier(), this.timestamp.toString()));
         }
 
         for (Member m : members) {

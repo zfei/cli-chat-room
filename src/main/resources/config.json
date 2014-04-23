@@ -2,9 +2,10 @@
 	"vectorStamp": true,
 	"roomSize": 3,
 	"portBase": 60000,
-	"interactive": true,
+	"interactive": false,
 	"meanDelay": 50,
 	"delayDeviation": 50,
+    "dropRate": 0,
 	"nonInteractiveMsgInterval": 5000,
 	"members": [
 		{
@@ -16,5 +17,5 @@
 			"ip": "localhost"
 		}
 	],
-	"multicastType": "RELIABLE_TOTAL_ORDERING"
+	"multicastType": "RELIABLE_CAUSAL_ORDERING"
 }

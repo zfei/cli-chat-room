@@ -3,6 +3,8 @@ package me.zfei.clichatroom.models;
 import me.zfei.clichatroom.utils.TimeStamp;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -12,10 +14,12 @@ import java.util.HashSet;
 /**
  * Created by zfei on 4/2/14.
  */
-public class Sequencer extends Member{
+public class Sequencer extends Member {
 
     private int sequenceNum;
     private HashSet<String> receivedMessages;
+
+    private Logger logger = LoggerFactory.getLogger(Sequencer.class);
 
     public Sequencer(int identifier, TimeStamp initialTimestamp) {
         super("localhost", identifier, initialTimestamp);
@@ -65,7 +69,7 @@ public class Sequencer extends Member{
         String serializedMessage = Message.decodePacket(receivedPacket);
         Message msgObj = new Message(serializedMessage);
         if (msgObj.isAck()) {
-            System.out.println("SEQUENCER RECEIVED ACK");
+            logger.info("SEQUENCER RECEIVED ACK");
             this.networker.processAck(msgObj);
             return;
         }

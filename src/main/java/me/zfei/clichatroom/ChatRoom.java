@@ -1,7 +1,7 @@
 package me.zfei.clichatroom;
 
 import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
+import com.google.common.io.Files;
 import me.zfei.clichatroom.models.Member;
 import me.zfei.clichatroom.models.Sequencer;
 import me.zfei.clichatroom.utils.LamportTimeStamp;
@@ -12,8 +12,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 
 /**
@@ -25,7 +25,7 @@ public class ChatRoom {
     public static int NUM_MEMBERS = 2;
     public static boolean USE_VECTOR_TIMESTAMP = true;
     public static MulticastType MULTICAST_TYPE = MulticastType.RELIABLE_TOTAL_ORDERING;
-    public static double DROP_RATE = 0.1;
+    public static double DROP_RATE = 0.8;
     public static int MEAN_DELAY = 50;
     public static int DELAY_DEVIATION = 50;
     public static int NON_INT_INTERVAL = 2000;
@@ -81,8 +81,11 @@ public class ChatRoom {
     }
 
     public static JSONObject readConfig(String path) throws IOException, JSONException {
-        URL url = Resources.getResource(path);
-        String configString = Resources.toString(url, Charsets.UTF_8);
+//        URL url = Resources.getResource(path);
+//        String configString = Resources.toString(url, Charsets.UTF_8);
+
+        String configString = Files.toString(new File(path), Charsets.UTF_8);
+
         JSONObject configJson = new JSONObject(configString);
 
         if (configJson.has("vectorStamp")) {
@@ -102,6 +105,9 @@ public class ChatRoom {
         }
         if (configJson.has("delayDeviation")) {
             DELAY_DEVIATION = configJson.getInt("delayDeviation");
+        }
+        if (configJson.has("dropRate")) {
+            DROP_RATE = configJson.getDouble("dropRate");
         }
         if (configJson.has("nonInteractiveMsgInterval")) {
             NON_INT_INTERVAL = configJson.getInt("nonInteractiveMsgInterval");

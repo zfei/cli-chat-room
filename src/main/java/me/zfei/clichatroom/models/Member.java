@@ -5,6 +5,8 @@ import me.zfei.clichatroom.utils.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -27,6 +29,8 @@ public class Member extends Thread {
     protected ArrayList<Member> members;
     private MemberListener listener;
 
+    private Logger logger = LoggerFactory.getLogger(Member.class);
+
     public Member(String ip, int identifier, TimeStamp initialTimestamp) {
         try {
             this.ip = InetAddress.getByName(ip);
@@ -41,7 +45,7 @@ public class Member extends Thread {
     }
 
     public void startListener() {
-        System.out.format("LISTENER STARTED ON %s AT %d\n", this.getIp(), this.getPort());
+        logger.info(String.format("LISTENER STARTED ON %s AT %d\n", this.getIp(), this.getPort()));
 
         // start listening to incoming connections
         this.listener = new MemberListener(this);

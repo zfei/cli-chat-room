@@ -4,6 +4,8 @@ import me.zfei.clichatroom.ChatRoom;
 import me.zfei.clichatroom.utils.MulticastType;
 import me.zfei.clichatroom.utils.Networker;
 import me.zfei.clichatroom.utils.VectorTimeStamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -26,6 +28,8 @@ public class MemberListener extends Thread {
     private Map<Integer, String> readyDigests;
 
     private Networker networker;
+
+    private Logger logger = LoggerFactory.getLogger(MemberListener.class);
 
     public MemberListener(Member owner) {
         this.owner = owner;
@@ -106,7 +110,7 @@ public class MemberListener extends Thread {
     }
 
     private void deliver(String message, String tsString) {
-        System.out.format("MEMBER %d DELIVERED %s AT %s\n", this.owner.getIdentifier(), message, tsString);
+        logger.info(String.format("MEMBER %d DELIVERED %s AT %s\n", this.owner.getIdentifier(), message, tsString));
     }
 
     private boolean causalDeliver(Message messageObj, boolean holdBack) {
@@ -135,11 +139,11 @@ public class MemberListener extends Thread {
         for (int i = 0; i < tsArr1.length; i++) {
             if (i == senderId) {
                 if (tsArr2[i] != tsArr1[i] + 1) {
-                    System.out.format("MEMBER %d FAILS TO DELIVER MESSAGE SENT FROM %d AT %s, ITS TIMESTAMP IS %s\n", this.owner.getIdentifier(), senderId, vts.toString(), this.owner.getTimestamp().toString());
+                    logger.debug(String.format("MEMBER %d FAILS TO DELIVER MESSAGE SENT FROM %d AT %s, ITS TIMESTAMP IS %s\n", this.owner.getIdentifier(), senderId, vts.toString(), this.owner.getTimestamp().toString()));
                     return false;
                 }
             } else if (tsArr2[i] > tsArr1[i]) {
-                System.out.format("MEMBER %d FAILS TO DELIVER MESSAGE SENT FROM %d AT %s, ITS TIMESTAMP IS %s\n", this.owner.getIdentifier(), senderId, vts.toString(), this.owner.getTimestamp().toString());
+                logger.debug(String.format("MEMBER %d FAILS TO DELIVER MESSAGE SENT FROM %d AT %s, ITS TIMESTAMP IS %s\n", this.owner.getIdentifier(), senderId, vts.toString(), this.owner.getTimestamp().toString()));
                 return false;
             }
         }
@@ -174,7 +178,7 @@ public class MemberListener extends Thread {
         String message = messageObj.getMessage();
 
         if (messageObj.isAck()) {
-            System.out.println(this.owner.getIdentifier() + " RECEIVED ACK");
+            logger.debug(this.owner.getIdentifier() + " RECEIVED ACK");
             this.networker.processAck(messageObj);
             return;
         }
